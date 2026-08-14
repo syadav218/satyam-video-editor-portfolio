@@ -6,28 +6,28 @@ const projects = [
     type: 'ads',
     label: 'Advertising',
     description: 'A fast, hook-first ad edit designed to introduce a product quickly and drive action.',
-    video: '/media/ad-1.mp4'
+    video: '/ad-1.mp4'
   },
   {
     title: 'Product Deep Dive',
     type: 'product',
     label: 'Product Review',
     description: 'Clean product storytelling with b-roll, punchy transitions and readable on-screen information.',
-    video: '/media/product-1.mp4'
+    video: '/product-1.mp4'
   },
   {
     title: 'Creator Reel',
     type: 'reels',
     label: 'Reels & Shorts',
     description: 'A retention-focused vertical cut with captions, pattern interrupts and social-first pacing.',
-    video: '/media/reels-1.mp4'
+    video: '/reels-1.mp4'
   },
   {
     title: 'Explainer Cut',
     type: 'explainer',
     label: 'Explainer',
     description: 'A clear, visual explanation built around structure, motion graphics and sound design.',
-    video: '/media/explainer-1.mp4'
+    video: '/explainer-1.mp4'
   }
 ];
 
@@ -91,7 +91,6 @@ function bindVideos() {
     const button = box.querySelector('.play');
     const fallback = box.querySelector('.media-fallback');
 
-    // Hide fallback when video loads successfully
     video.addEventListener('loadeddata', () => {
       fallback.style.display = 'none';
     });
@@ -100,12 +99,10 @@ function bindVideos() {
       fallback.style.display = 'none';
     });
 
-    // Show fallback only if video fails
     video.addEventListener('error', () => {
       fallback.style.display = 'grid';
     });
 
-    // Play / Pause button
     button.addEventListener('click', () => {
       if (video.paused) {
         video.play()
@@ -141,6 +138,7 @@ document.querySelectorAll('.cat').forEach(btn => {
       .forEach(b => b.classList.remove('active'));
 
     btn.classList.add('active');
+
     render(btn.dataset.filter);
   });
 });
@@ -199,6 +197,8 @@ if (contactForm) {
     }
   });
 }
+
+// Profile photo popup
 const profileButton = document.querySelector('#profileButton');
 
 if (profileButton) {
@@ -219,7 +219,7 @@ if (profileButton) {
 
     overlay.innerHTML = `
       <img
-        src="/media/profile.jpg"
+        src="/profile.jpg"
         alt="Satyam Yadav"
         style="
           max-width: min(90vw, 500px);
