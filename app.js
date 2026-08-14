@@ -48,11 +48,10 @@ function card(p, i) {
           muted
           loop
           playsinline
-          preload="metadata"
-          controls
+          preload="none"
           data-video
+          data-src="${p.video}"
         >
-          <source src="${p.video}" type="video/mp4">
         </video>
 
         <div class="media-fallback">
@@ -61,6 +60,7 @@ function card(p, i) {
         </div>
 
         <button class="play" aria-label="Play ${p.title}">▶</button>
+
       </div>
 
       <div class="project-info">
@@ -85,8 +85,20 @@ function card(p, i) {
   `;
 }
 
+function loadVideo(video) {
+  if (!video.dataset.src || video.dataset.loaded === 'true') {
+    return;
+  }
+
+  video.src = video.dataset.src;
+  video.dataset.loaded = 'true';
+  video.load();
+}
+
 function bindVideos() {
-  document.querySelectorAll('.project-media').forEach(box => {
+  const boxes = document.querySelectorAll('.project-media');
+
+  boxes.forEach(box => {
     const video = box.querySelector('[data-video]');
     const button = box.querySelector('.play');
     const fallback = box.querySelector('.media-fallback');
@@ -104,6 +116,8 @@ function bindVideos() {
     });
 
     button.addEventListener('click', () => {
+      loadVideo(video);
+
       if (video.paused) {
         video.play()
           .then(() => {
@@ -118,6 +132,25 @@ function bindVideos() {
       }
     });
   });
+
+  // Load videos only when they come near the screen
+  const observer = new IntersectionObserver(
+    entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          loadVideo(entry.target);
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    {
+      rootMargin: '500px 0px'
+    }
+  );
+
+  document
+    .querySelectorAll('[data-video]')
+    .forEach(video => observer.observe(video));
 }
 
 function render(filter = 'all') {
@@ -138,7 +171,6 @@ document.querySelectorAll('.cat').forEach(btn => {
       .forEach(b => b.classList.remove('active'));
 
     btn.classList.add('active');
-
     render(btn.dataset.filter);
   });
 });
@@ -148,6 +180,8 @@ const showreel = document.querySelector('#showreel');
 const showreelFallback = document.querySelector('#showreelFallback');
 
 if (showreel) {
+  showreel.preload = 'metadata';
+
   showreel.addEventListener('loadeddata', () => {
     if (showreelFallback) {
       showreelFallback.classList.remove('show');
