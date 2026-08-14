@@ -6,7 +6,6 @@ import crypto from 'node:crypto';
 
 const PORT = process.env.PORT || 3000;
 
-// Website files are now in the project root folder
 const root = path.resolve('.');
 const dataDir = path.resolve('data');
 const leadsFile = path.join(dataDir, 'leads.jsonl');
@@ -44,7 +43,7 @@ function readBody(req) {
     req.on('data', chunk => {
       raw += chunk;
 
-      if (raw.length > 100_000) {
+      if (raw.length > 100000) {
         req.destroy();
         reject(new Error('Payload too large'));
       }
@@ -53,6 +52,84 @@ function readBody(req) {
     req.on('end', () => resolve(raw));
     req.on('error', reject);
   });
+}
+
+function serveFile(req, res, file) {
+  if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+    return json(res, 404, {
+      ok: false,
+      message: 'Not found'
+    });
+  }
+
+  const ext = path.extname(file).toLowerCase();
+  const stat = fs.statSync(file);
+  const size = stat.size;
+  const contentType = mime[ext] || 'application/octet-stream';
+
+  // Video / media Range support
+  if (ext === '.mp4' || ext === '.webm') {
+    const range = req.headers.range;
+
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Content-Type', contentType);
+
+    if (range) {
+      const match = range.match(/bytes=(\d+)-(\d*)/);
+
+      if (!match) {
+        res.writeHead(416, {
+          'Content-Range': `bytes */${size}`
+        });
+        return res.end();
+      }
+
+      const start = Number(match[1]);
+      const end = match[2]
+        ? Number(match[2])
+        : size - 1;
+
+      if (start >= size || end >= size || start > end) {
+        res.writeHead(416, {
+          'Content-Range': `bytes */${size}`
+        });
+        return res.end();
+      }
+
+      const chunkSize = end - start + 1;
+
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${size}`,
+        'Content-Length': chunkSize,
+        'Accept-Ranges': 'bytes',
+        'Content-Type': contentType
+      });
+
+      return fs
+        .createReadStream(file, { start, end })
+        .pipe(res);
+    }
+
+    res.writeHead(200, {
+      'Content-Length': size,
+      'Accept-Ranges': 'bytes',
+      'Content-Type': contentType
+    });
+
+    return fs.createReadStream(file).pipe(res);
+  }
+
+  // Normal files
+  res.writeHead(200, {
+    'Content-Length': size,
+    'Content-Type': contentType
+  });
+
+  if (req.method === 'HEAD') {
+    return res.end();
+  }
+
+  fs.createReadStream(file).pipe(res);
 }
 
 const server = http.createServer(async (req, res) => {
@@ -100,17 +177,13 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
-    // Homepage
-    let reqPath = url.pathname === '/'
-      ? '/index.html'
-      : decodeURIComponent(url.pathname);
-
-    // Remove query-safe path issues
-    reqPath = reqPath.split('?')[0];
+    let reqPath =
+      url.pathname === '/'
+        ? '/index.html'
+        : decodeURIComponent(url.pathname);
 
     const file = path.resolve(root, '.' + reqPath);
 
-    // Security check
     if (
       file !== root &&
       !file.startsWith(root + path.sep)
@@ -121,30 +194,13 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
-    if (
-      !fs.existsSync(file) ||
-      fs.statSync(file).isDirectory()
-    ) {
-      return json(res, 404, {
-        ok: false,
-        message: 'Not found'
-      });
-    }
-
-    const ext = path.extname(file).toLowerCase();
-
-    res.writeHead(200, {
-      'Content-Type':
-        mime[ext] || 'application/octet-stream'
-    });
-
-    fs.createReadStream(file).pipe(res);
+    return serveFile(req, res, file);
 
   } catch (error) {
     console.error(error);
 
     if (!res.headersSent) {
-      json(res, 500, {
+      return json(res, 500, {
         ok: false,
         message: 'Server error'
       });
